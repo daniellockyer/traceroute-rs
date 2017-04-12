@@ -1,7 +1,6 @@
 extern crate libc;
 extern crate rand;
 extern crate socket;
-extern crate time;
 extern crate pnet;
 
 use std::iter::Iterator;
@@ -14,7 +13,7 @@ use pnet::packet::ipv4::Ipv4Packet;
 
 use libc::{SO_RCVTIMEO, suseconds_t, time_t, timeval};
 use socket::{AF_INET, IP_TTL, IPPROTO_IP, SOCK_RAW, SOL_SOCKET, Socket};
-use time::{Duration, SteadyTime};
+use std::time::{Duration, Instant};
 
 pub struct TraceResult {
     addr: SocketAddr,
@@ -37,16 +36,14 @@ pub struct TraceHop {
 
 /// Performs a traceroute, waiting at each request for around one second before failing
 pub fn traceroute<T: ToSocketAddrs>(address: &T) -> io::Result<TraceResult> {
-    traceroute_with_timeout(address, Duration::seconds(1))
+    traceroute_with_timeout(address, Duration::from_secs(1))
 }
 
 /// Performs a traceroute, waiting at each request for around until timeout elapses before failing
 pub fn traceroute_with_timeout<T: ToSocketAddrs>(address: &T, timeout: Duration) -> io::Result<TraceResult> {
-    match timeout.num_microseconds() {
-        None => return Err(Error::new(ErrorKind::InvalidInput, "Timeout too large")),
-        Some(0) => return Err(Error::new(ErrorKind::InvalidInput, "Timeout too small")),
-        _ => (),
-    };
+    if timeout.as_secs() == 0 {
+        return Err(Error::new(ErrorKind::InvalidInput, "Timeout too small"));
+    }
 
     let mut addr_iter = address.to_socket_addrs()?;
     match addr_iter.next() {
@@ -104,15 +101,15 @@ impl TraceResult {
             self.ttl += 1;
 
             socket.setsockopt(IPPROTO_IP, IP_TTL, self.ttl)?;
-            socket.setsockopt(SOL_SOCKET, SO_RCVTIMEO, compute_timeout(self.timeout))?;
+            socket.setsockopt(SOL_SOCKET, 20, compute_timeout(self.timeout))?; // SO_RCVTIMEO = 20
 
             let wrote = socket.sendto(&vec, 0, &self.addr)?;
             assert_eq!(wrote, vec.len());
             
-            let start_time = SteadyTime::now();
+            let start_time = Instant::now();
 
             // After deadline passes, restart the loop to advance the TTL and resend.
-            while SteadyTime::now() < start_time + self.timeout {
+            while Instant::now() < start_time + self.timeout {
                 let (sender, data) = match socket.recvfrom(4096, 0) {
                     Err(ref err) if err.kind() == ErrorKind::WouldBlock => continue,
                     Err(e) => return Err(e),
@@ -135,7 +132,7 @@ impl TraceResult {
                     let hop = TraceHop {
                         ttl: self.ttl,
                         host: sender,
-                        rtt: SteadyTime::now() - start_time,
+                        rtt: Instant::now() - start_time,
                     };
 
                     if icmp_type == 0 { // EchoReply
@@ -149,9 +146,8 @@ impl TraceResult {
 }
 
 fn compute_timeout(timeout: Duration) -> timeval {
-    let usecs = timeout.num_microseconds().unwrap();
     timeval {
-        tv_sec: (usecs / 1000000) as time_t,
-        tv_usec: (usecs % 1000000) as suseconds_t,
+        tv_sec: (timeout.as_secs()) as time_t,
+        tv_usec: (timeout.subsec_nanos()) as suseconds_t,
     }
 }
