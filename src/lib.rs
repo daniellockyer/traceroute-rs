@@ -11,7 +11,7 @@ use std::time::{Duration, Instant};
 use pnet::packet::icmp::IcmpPacket;
 use pnet::packet::ipv4::Ipv4Packet;
 use pnet::packet::{Packet,PrimitiveValues};
-use libc::{SO_RCVTIMEO, suseconds_t, time_t, timeval};
+use libc::{suseconds_t, time_t, timeval};
 use socket::{AF_INET, IP_TTL, IPPROTO_IP, SOCK_RAW, SOL_SOCKET, Socket};
 
 pub struct TraceResult {
@@ -82,7 +82,8 @@ impl TraceResult {
                 8u8, 0u8,
                 0u8, 0u8,
                 (self.ident >> 8) as u8, (self.ident & 0xff) as u8, 
-                (self.seq_num >> 8) as u8, (self.seq_num & 0xff) as u8];
+                (self.seq_num >> 8) as u8, (self.seq_num & 0xff) as u8
+            ];
 
             let mut sum = 0u16;
             for word in vec.chunks(2) {
