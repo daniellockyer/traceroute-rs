@@ -1,0 +1,19 @@
+[package]
+name = "traceroute-rs"
+version = "0.1.0"
+authors = ["Daniel Lockyer <thisisdaniellockyer@gmail.com>"]
+
+[[bin]]
+name = "traceroute"
+path = "src/bin/main.rs"
+
+[lib]
+name = "traceroute"
+path = "src/lib.rs"
+
+[dependencies]
+pnet = "0.16.0"
+libc = "0.1.12"
+socket = "0.0.7"
+rand = "0.3.15"
+time = "0.1.36"
