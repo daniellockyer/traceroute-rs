@@ -6,14 +6,13 @@ extern crate pnet;
 use std::iter::Iterator;
 use std::io::{self, Error, ErrorKind};
 use std::net::{SocketAddr, ToSocketAddrs};
+use std::time::{Duration, Instant};
 
-use pnet::packet::{Packet,PrimitiveValues};
 use pnet::packet::icmp::IcmpPacket;
 use pnet::packet::ipv4::Ipv4Packet;
-
+use pnet::packet::{Packet,PrimitiveValues};
 use libc::{SO_RCVTIMEO, suseconds_t, time_t, timeval};
 use socket::{AF_INET, IP_TTL, IPPROTO_IP, SOCK_RAW, SOL_SOCKET, Socket};
-use std::time::{Duration, Instant};
 
 pub struct TraceResult {
     addr: SocketAddr,
