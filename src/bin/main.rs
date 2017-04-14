@@ -1,10 +1,14 @@
 extern crate traceroute;
 
-use std::env;
+use std::{env,process};
+use std::io::{self, Write};
 
 fn main() {
-    let mut args = env::args();
-    let ip = args.nth(1).unwrap() + ":0";
+    let ip = env::args().nth(1).unwrap_or_else(|| {
+        writeln!(io::stderr(), "[!] Usage: traceroute <host>").unwrap();
+        process::exit(1);
+    }) + ":0";
+
     println!("traceroute to {}", ip);
 
     for result in traceroute::traceroute(&ip).unwrap() {

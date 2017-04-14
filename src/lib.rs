@@ -80,7 +80,7 @@ impl TraceResult {
             let mut vec: Vec<u8> = vec![
                 8u8, 0u8,
                 0u8, 0u8,
-                (self.ident >> 8) as u8, (self.ident & 0xff) as u8, 
+                (self.ident >> 8) as u8, (self.ident & 0xff) as u8,
                 (self.seq_num >> 8) as u8, (self.seq_num & 0xff) as u8
             ];
 
@@ -104,7 +104,7 @@ impl TraceResult {
 
             let wrote = socket.sendto(&vec, 0, &self.addr)?;
             assert_eq!(wrote, vec.len());
-            
+
             let start_time = Instant::now();
 
             // After deadline passes, restart the loop to advance the TTL and resend.
