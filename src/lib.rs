@@ -1,5 +1,4 @@
 extern crate libc;
-extern crate rand;
 extern crate socket;
 extern crate pnet;
 
@@ -50,7 +49,7 @@ pub fn traceroute_with_timeout<T: ToSocketAddrs>(address: &T, timeout: Duration)
         Some(addr) => Ok(TraceResult {
             addr: addr,
             ttl: 0,
-            ident: rand::random::<u16>(),
+            ident: (unsafe { libc::getpid() as u16 } & 0xffff) | 0x8000,
             seq_num: 0,
             done: false,
             timeout: timeout,
