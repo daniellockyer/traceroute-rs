@@ -1,9 +1,13 @@
+#![feature(alloc_system)]
+extern crate alloc_system;
+
 extern crate libc;
 extern crate socket;
 extern crate pnet;
 
 use std::iter::Iterator;
-use std::io::{self, Error, ErrorKind};
+use std::{env,process};
+use std::io::{self, Write, Error, ErrorKind};
 use std::net::{SocketAddr, ToSocketAddrs};
 use std::time::{Duration, Instant};
 
@@ -12,6 +16,23 @@ use pnet::packet::ipv4::Ipv4Packet;
 use pnet::packet::{Packet,PrimitiveValues};
 use libc::{suseconds_t, time_t, timeval};
 use socket::{AF_INET, IP_TTL, IPPROTO_IP, SOCK_RAW, SOL_SOCKET, Socket};
+
+fn main() {
+    let ip = env::args().nth(1).unwrap_or_else(|| {
+        writeln!(io::stderr(), "[!] Usage: traceroute <host>").unwrap();
+        process::exit(1);
+    }) + ":0";
+
+    println!("traceroute to {}", ip);
+
+    for result in traceroute(&ip).unwrap() {
+        match result {
+            Ok(res) => println!(" {}\t{}\t{}", res.ttl, res.host,
+                (res.rtt.as_secs() as f32) + ((res.rtt.subsec_nanos() as f32) / 1e6)),
+            Err(e) => panic!("{:?}", e)
+        }
+    }
+}
 
 pub struct TraceResult {
     addr: SocketAddr,
@@ -49,7 +70,7 @@ pub fn traceroute_with_timeout<T: ToSocketAddrs>(address: &T, timeout: Duration)
         Some(addr) => Ok(TraceResult {
             addr: addr,
             ttl: 0,
-            ident: (unsafe { libc::getpid() as u16 } & 0xffff) | 0x8000,
+            ident: (unsafe { libc::getpid() as u16 } & 0xffff) | 0x8000, // Borrowed from Apple
             seq_num: 0,
             done: false,
             timeout: timeout,
@@ -100,7 +121,10 @@ impl TraceResult {
             self.ttl += 1;
 
             socket.setsockopt(IPPROTO_IP, IP_TTL, self.ttl)?;
-            socket.setsockopt(SOL_SOCKET, 20, compute_timeout(self.timeout))?; // SO_RCVTIMEO = 20
+            socket.setsockopt(SOL_SOCKET, 20, timeval { // SO_RCVTIMEO = 20
+                tv_sec: (self.timeout.as_secs()) as time_t,
+                tv_usec: (self.timeout.subsec_nanos()) as suseconds_t,
+            })?;
 
             let wrote = socket.sendto(&vec, 0, &self.addr)?;
             assert_eq!(wrote, vec.len());
@@ -120,33 +144,26 @@ impl TraceResult {
 
                 let icmp_type = reply_icmp.get_icmp_type().to_primitive_values().0;
 
-                if icmp_type == 11 && self.ttl == 255 { // TimeExceeded
+                if icmp_type == 11 && self.ttl == 255 { // TimeExceeded = 11
                     self.done = true;
                     return Err(Error::new(ErrorKind::TimedOut, "Too many hops"));
                 }
 
                 let payload = reply_icmp.payload();
 
-                if payload[(payload.len()-4) .. payload.len()] == vec[4..8] {
+                if payload[(payload.len() - 4) .. payload.len()] == vec[4..8] {
                     let hop = TraceHop {
                         ttl: self.ttl,
                         host: sender,
                         rtt: Instant::now() - start_time,
                     };
 
-                    if icmp_type == 0 { // EchoReply
+                    if icmp_type == 0 { // EchoReply = 0
                         self.done = true;
                     }
                     return Ok(hop);
                 }
             }
         }
-    }
-}
-
-fn compute_timeout(timeout: Duration) -> timeval {
-    timeval {
-        tv_sec: (timeout.as_secs()) as time_t,
-        tv_usec: (timeout.subsec_nanos()) as suseconds_t,
     }
 }

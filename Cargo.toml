@@ -3,15 +3,7 @@ name = "traceroute-rs"
 version = "0.1.0"
 authors = ["Daniel Lockyer <thisisdaniellockyer@gmail.com>"]
 
-[[bin]]
-name = "traceroute"
-path = "src/bin/main.rs"
-
-[lib]
-name = "traceroute"
-path = "src/lib.rs"
-
 [dependencies]
-pnet = "0.16.0"
-libc = "0.1.12"
+pnet = "0.17.1"
+libc = "0.2.22"
 socket = "0.0.7"
