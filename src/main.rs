@@ -131,7 +131,6 @@ impl TraceResult {
 
             let start_time = Instant::now();
 
-            // After deadline passes, restart the loop to advance the TTL and resend.
             while Instant::now() < start_time + self.timeout {
                 let (sender, data) = match socket.recvfrom(4096, 0) {
                     Err(ref err) if err.kind() == ErrorKind::WouldBlock => continue,
