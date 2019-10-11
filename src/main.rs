@@ -1,13 +1,10 @@
-#![feature(alloc_system)]
-extern crate alloc_system;
-
 extern crate libc;
 extern crate socket;
 extern crate pnet;
 
 use std::iter::Iterator;
 use std::{env,process};
-use std::io::{self, Write, Error, ErrorKind};
+use std::io::{self, Error, ErrorKind};
 use std::net::{SocketAddr, ToSocketAddrs};
 use std::time::{Duration, Instant};
 
@@ -19,7 +16,7 @@ use socket::{AF_INET, IP_TTL, IPPROTO_IP, SOCK_RAW, SOL_SOCKET, Socket};
 
 fn main() {
     let ip = env::args().nth(1).unwrap_or_else(|| {
-        writeln!(io::stderr(), "[!] Usage: traceroute <host>").unwrap();
+        eprintln!("[!] Usage: traceroute <host>");
         process::exit(1);
     }) + ":0";
 
@@ -68,12 +65,12 @@ pub fn traceroute_with_timeout<T: ToSocketAddrs>(address: &T, timeout: Duration)
     match addr_iter.next() {
         None => Err(Error::new(ErrorKind::InvalidInput, "Could not interpret address")),
         Some(addr) => Ok(TraceResult {
-            addr: addr,
+            addr,
             ttl: 0,
-            ident: (unsafe { libc::getpid() as u16 } & 0xffff) | 0x8000, // Borrowed from Apple
+            ident: (unsafe { libc::getpid() as u16 }) | 0x8000, // Borrowed from Apple
             seq_num: 0,
             done: false,
-            timeout: timeout,
+            timeout,
         })
     }
 }
